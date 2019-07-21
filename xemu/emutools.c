@@ -395,7 +395,7 @@ void xemu_pre_init ( const char *app_organization, const char *app_name, const c
 	// In case of emscripten we do all the SDL init here!!!
 	// Please note: with emscripten, you can't use SDL_INIT_TIMER and SDL_INIT_HAPTIC subsystems it seems, it will
 	// give error on SDL_Init (I can understand with timer, as it would require multithreading)
-	if (SDL_Init(SDL_INIT_EVERYTHING & ~(SDL_INIT_TIMER | SDL_INIT_HAPTIC)))
+	if (SDL_Init(SDL_INIT_VIDEO|SDL_INIT_AUDIO/*SDL_INIT_EVERYTHING & ~(SDL_INIT_TIMER | SDL_INIT_HAPTIC)*/))
 		FATAL("Cannot initialize SDL: %s", SDL_GetError());
 	atexit(shutdown_emulator);
 #else

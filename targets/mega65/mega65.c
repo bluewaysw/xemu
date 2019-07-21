@@ -705,8 +705,8 @@ int main ( int argc, char **argv )
 		TARGET_DESC APP_DESC_APPEND,	// window title
 		1,				// resizable window
 		SCREEN_WIDTH, SCREEN_HEIGHT,	// texture sizes
-		SCREEN_WIDTH, SCREEN_HEIGHT * 2,// logical size (used with keeping aspect ratio by the SDL render stuffs)
-		SCREEN_WIDTH, SCREEN_HEIGHT * 2,// window size
+		SCREEN_WIDTH, SCREEN_HEIGHT,// logical size (used with keeping aspect ratio by the SDL render stuffs)
+		SCREEN_WIDTH, SCREEN_HEIGHT,// window size
 		SCREEN_FORMAT,			// pixel format
 		0,				// we have *NO* pre-defined colours as with more simple machines (too many we need). we want to do this ourselves!
 		NULL,				// -- "" --

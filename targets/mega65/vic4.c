@@ -550,6 +550,7 @@ static inline void vic2_render_screen_text ( Uint32 *p, int tail )
 	Uint8 *chrg = vic2_get_chargen_pointer();
 	int inc_p = (vic_registers[0x54] & 1) ? 2 : 1;	// VIC-IV (Mega-65) 16 bit text mode?
 	int scanline = 0;
+	int incline = 0;
 	if (vic_registers[0x31] & 128) { // check H640 bit: 80 column mode?
 		xlim = 79;
 		ylim = 24;
@@ -651,7 +652,10 @@ static inline void vic2_render_screen_text ( Uint32 *p, int tail )
 				y++;
 				charline = 0;
 			} else {
-				charline++;
+				if(incline) {
+					charline++;
+				}
+				incline = incline ? 0 : -1;
 				vidp -= (xlim + 1) * inc_p;
 				colp -= (xlim + 1) * inc_p;
 			}
@@ -863,7 +867,7 @@ void vic_render_screen ( void )
 		if (vic_registers[0x11] & 32)
 			vic2_render_screen_bmm(p_sdl, tail_sdl);
 		else
-			vic2_render_screen_text(p_sdl, tail_sdl);
+			vic2_render_screen_text(p_sdl, 160/*tail_sdl*/);
 	}
 	if (sprites) {	// Render sprites. VERY BAD. We ignore sprite priority as well (cannot be behind the background)
 		int a;

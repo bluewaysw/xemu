@@ -30,7 +30,7 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 #include <emscripten.h>
 #define EMSCRIPTEN_SDL_BASE_DIR "/files/"
 #define MSG_POPUP_WINDOW(sdlflag, title, msg, win) \
-	do { if (1 || sdlflag == SDL_MESSAGEBOX_ERROR) { EM_ASM_INT({ window.alert(Pointer_stringify($0)); }, msg); } } while(0)
+	do { if (1 || sdlflag == SDL_MESSAGEBOX_ERROR) { EM_ASM_INT({ window.alert(UTF8ToString($0)); }, msg); } } while(0)
 #else
 #define MSG_POPUP_WINDOW(sdlflag, title, msg, win) SDL_ShowSimpleMessageBox(sdlflag, title, msg, win)
 #define INSTALL_DIRECTORY_ENTRY_NAME "default-files"

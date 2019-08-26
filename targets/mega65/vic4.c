@@ -78,7 +78,7 @@ static const char *pixel_pointer_check_modn;
 static inline void PIXEL_POINTER_CHECK_INIT( Uint32 *base, int tail, const char *module )
 {
 	pixel_pointer_check_base = base;
-	pixel_pointer_check_end  = base + (640 + tail) * 200;
+	pixel_pointer_check_end  = base + (800 + tail) * 600;
 	pixel_pointer_check_modn = module;
 }
 static inline void PIXEL_POINTER_CHECK_ASSERT ( Uint32 *p )
@@ -534,8 +534,8 @@ static inline Uint8 *vic2_get_chargen_pointer ( void )
 }
 
 
-//#define BG_FOR_Y(y) vic_registers[0x21]
-#define BG_FOR_Y(y) raster_colours[(y) + 50]
+#define BG_FOR_Y(y) vic_registers[0x21]
+//#define BG_FOR_Y(y) raster_colours[(y) + 50]
 
 
 
@@ -674,45 +674,166 @@ static inline void vic2_render_screen_text ( Uint32 *p, int tail )
 // Note: VIC2 sees ROM at some addresses thing is not emulated yet!
 static inline void vic2_render_screen_bmm ( Uint32 *p, int tail )
 {
-	int x = 0, y = 0, charline = 0;
+	int x = 0, y = 0, charline = 0, scanlines = 0;
 	Uint8 *vidp, *chrp;
-	vidp = main_ram + ((vic_registers[0x18] & 0xF0) << 6) + vic2_16k_bank;
-	sprite_pointers = vidp + 1016;
-	chrp = main_ram + ((vic_registers[0x18] & 8) ? 8192 : 0) + vic2_16k_bank;
-	PIXEL_POINTER_CHECK_INIT(p, tail, "vic2_render_screen_bmm");
+	Uint32* inip = p;
+	Uint32 bwidth = vic_registers[0x5c];
+	//vidp = main_ram + ((vic_registers[0x18] & 0xF0) << 6) + vic2_16k_bank;
+
+	Uint32 ystart, yend, yheight;
+	Uint32 border = palette[2];
+	Uint32 background = palette[3];
+	Uint32 cnt = 0;
+
+	ystart =
+			(vic_registers[0x49] << 8) +
+			vic_registers[0x48];
+	yend =
+			(vic_registers[0x4b] << 8) +
+			vic_registers[0x4a];
+	yheight = yend-ystart;
+	if (yheight == 0) {
+		yheight = 200;
+	}
+
+	vidp = main_ram +
+			(vic_registers[0x63] << 24) +
+			(vic_registers[0x62] << 16) +
+			(vic_registers[0x61] << 8) +
+			vic_registers[0x60];
+
+  // TODO, this is fix coding the sprint source address for GEOS use
+	sprite_pointers = main_ram + 0x8ff8/*vidp + 1016*/;
+	//chrp = main_ram + ((vic_registers[0x18] & 8) ? 8192 : 0) + vic2_16k_bank;
+	chrp = main_ram +
+			(vic_registers[0x6a] << 16) +
+			(vic_registers[0x69] << 8) +
+			vic_registers[0x68];
+
+ PIXEL_POINTER_CHECK_INIT(p, tail, "vic2_render_screen_bmm");
+
+ Uint32 pixelScale = 2;
+ if(vic_registers[0x31] & 0x80) {
+	 pixelScale = 1;
+ }
+ if(yheight > 0) {
+		while(cnt < ystart) {
+			Uint32 x = 0;
+			while(x < 800) {
+				*p = border;
+				x++;
+				p++;
+			}
+			p += tail;
+			cnt++;
+		}
+	}
+
+	Uint32 bcount = bwidth;
 	for (;;) {
 		Uint8  data = *(vidp++);
 		Uint32 bg = palette[data & 15];
 		Uint32 fg = palette[data >> 4];
 		data = *chrp;
 		chrp += 8;
-		PIXEL_POINTER_CHECK_ASSERT(p);
-		p[ 0] = p[ 1] = data & 128 ? fg : bg;
-		p[ 2] = p[ 3] = data &  64 ? fg : bg;
-		p[ 4] = p[ 5] = data &  32 ? fg : bg;
-		p[ 6] = p[ 7] = data &  16 ? fg : bg;
-		p[ 8] = p[ 9] = data &   8 ? fg : bg;
-		p[10] = p[11] = data &   4 ? fg : bg;
-		p[12] = p[13] = data &   2 ? fg : bg;
-		p[14] = p[15] = data &   1 ? fg : bg;
-		p += 16;
-		if (x == 39) {
-			p += tail;
-			x = 0;
-			if (charline == 7) {
-				if (y == 24)
-					break;
-				y++;
-				charline = 0;
-				chrp -= 7;
-			} else {
-				charline++;
-				vidp -= 40;
-				chrp -= 319;
+
+		PIXEL_POINTER_CHECK_ASSERT(p+7);
+		if(bcount) {
+			p[ 0] = border;
+			p++;
+			// move back again in the video source data.
+			// we are on the border
+			vidp--;
+			chrp -= 8;
+		} else if(vic_registers[0x31] & 0x80) {
+			p[ 0] = data & 128 ? fg : bg;
+			p[ 1] = data &  64 ? fg : bg;
+			p[ 2] = data &  32 ? fg : bg;
+			p[ 3] = data &  16 ? fg : bg;
+			p[ 4] = data &   8 ? fg : bg;
+			p[ 5] = data &   4 ? fg : bg;
+			p[ 6] = data &   2 ? fg : bg;
+			p[ 7] = data &   1 ? fg : bg;
+			p += 8;
+		}	else {
+			p[ 0] = p[ 1] = data & 128 ? fg : bg;
+			p[ 2] = p[ 3] = data &  64 ? fg : bg;
+			p[ 4] = p[ 5] = data &  32 ? fg : bg;
+			p[ 6] = p[ 7] = data &  16 ? fg : bg;
+			p[ 8] = p[ 9] = data &   8 ? fg : bg;
+			p[10] = p[11] = data &   4 ? fg : bg;
+			p[12] = p[13] = data &   2 ? fg : bg;
+			p[14] = p[15] = data &   1 ? fg : bg;
+			p += 16;
+		}
+		if(bcount) {
+			bcount--;
+		} else if ((bcount == 0) && (x == (vic_registers[0x58] - 1))) {
+
+			// draw background
+			bcount = 800 - 2*bwidth - vic_registers[0x58]*8*pixelScale;
+			while(bcount) {
+				p[ 0] = background;
+				p++;
+
+				bcount--;
 			}
-		} else
+
+			// draw border
+			bcount = bwidth;
+			while(bcount) {
+				p[ 0] = border;
+				p++;
+
+				bcount--;
+			}
+			p += tail;
+
+			x = 0;
+			scanlines++;
+			bcount = bwidth;
+			if(scanlines == yheight) {
+				break;
+			}
+			if (charline == 7) {
+				//if (y == ((vic_registers[0x31] & 0x08) ? 49 : 24))
+				//	break;
+				if((scanlines & 1) && !(vic_registers[0x31] & 0x08)) {
+					vidp -= vic_registers[0x58];
+					chrp -= (vic_registers[0x58] * 8);
+				} else {
+					y++;
+					charline = 0;
+					chrp -= 7;
+				}
+			} else {
+				vidp -= vic_registers[0x58];
+				if((scanlines & 1) && !(vic_registers[0x31] & 0x08)) {
+					chrp -= (vic_registers[0x58] * 8);
+				} else {
+					charline++;
+					chrp -= ((vic_registers[0x58] * 8) - 1);
+				}
+			}
+		} else {
 			x++;
+		}
 	}
+
+	if(yheight > 0) {
+		cnt = 0;
+		while(cnt < 600 - yend) {
+			Uint32 x = 0;
+			while(x < 800) {
+				*p = border;
+				x++;
+				p++;
+			}
+			p += tail;
+			cnt++;
+		}
+	}
+
 	PIXEL_POINTER_FINAL_ASSERT(p);
 }
 
@@ -809,36 +930,65 @@ static inline void vic3_render_screen_bpm ( Uint32 *p, int tail )
 */
 static void render_sprite ( int sprite_no, int sprite_mask, Uint8 *data, Uint32 *p, int tail )
 {
-	int sprite_y = vic_registers[sprite_no * 2 + 1] - SPRITE_Y_START_SCREEN;
-	int sprite_x = ((vic_registers[sprite_no * 2] | ((vic_registers[16] & sprite_mask) ? 0x100 : 0)) - SPRITE_X_START_SCREEN) * 2;
+	Uint32 ystart =
+			(vic_registers[0x49] << 8) +
+			vic_registers[0x48];
+	Uint32 yend =
+			(vic_registers[0x4b] << 8) +
+			vic_registers[0x4a];
+	Uint32 xstart = vic_registers[0x5c];
+	Uint32 xend = 800 - xstart;
+	Uint32 xwidth = xend - xstart;
+	Uint32 xoff = xstart + 1;
+	Uint32 yoff = ystart;
+	if(!(vic_registers[0x31] & 0x80)) {
+		xoff = SPRITE_X_START_SCREEN;
+	}
+	if(!(vic_registers[0x31] & 0x08)) {
+		yoff = SPRITE_Y_START_SCREEN;
+	}
+
+  // TODO misusing expand here to control sprite resolution
+	int sprite_y = ((vic_registers[sprite_no * 2 + 1]
+			| ((vic_registers[0x77] & sprite_mask) ? 0x100 : 0)
+		  | ((vic_registers[0x78] & sprite_mask) ? 0x200 : 0))  - yoff)
+												* ((vic_registers[0x76] & sprite_mask) ? 1 : 2)
+												+ ystart;
+	int sprite_x = (((vic_registers[sprite_no * 2]
+				| ((vic_registers[16] & sprite_mask) ? 0x100 : 0)
+				| ((vic_registers[0x5f] & sprite_mask) ? 0x200 : 0)
+				) - xoff)
+												* ((vic_registers[0x54] & 0x10) ? 1 : 2)	// x by 2 for default non H640 mode
+												 + xstart);
 	Uint32 colour = palette[vic_registers[39 + sprite_no] & 15];
-	int expand_x = vic_registers[29] & sprite_mask;
-	int expand_y = vic_registers[23] & sprite_mask;
+	int expand_x = !(vic_registers[0x54] & 0x10);	// expand if not H640
+	int expand_y = !(vic_registers[0x76] & sprite_mask);
 	int lim_y = sprite_y + ((expand_y) ? 42 : 21);
 	int y;
-	p += (640 + tail) * sprite_y;
-	for (y = sprite_y; y < lim_y; y += (expand_y ? 2 : 1), p += (640 + tail) * (expand_y ? 2 : 1))
-		if (y < 0 || y >= 200)
+
+	p += (800 + tail) * sprite_y;
+	for (y = sprite_y; y < lim_y; y += (expand_y ? 2 : 1), p += 800/*(640 + tail)*/ * (expand_y ? 2 : 1))
+		if (y < ystart || y >= yend)
 			data += 3;	// skip one line (three bytes) of sprite data if outside of screen
 		else {
 			int mask, a, x = sprite_x;
 			for (a = 0; a < 3; a++) {
 				for (mask = 128; mask; mask >>= 1) {
 					if (*data & mask) {
-						if (x >= 0 && x < 640) {
-							p[x] = p[x + 1] = colour;
-							if (expand_y && y < 200)
-								p[x + 640 + tail] = p[x + 641 + tail] = colour;
+						if (xstart >= 0 && x < xend) {
+							p[x] = colour;
+							if (expand_y && y < yend)
+								p[x + 800] = p[x + 801] = colour;
 						}
-						x += 2;
-						if (expand_x && x >= 0 && x < 640) {
-							p[x] = p[x + 1] = colour;
-							if (expand_y && y < 200)
-								p[x + 640 + tail] = p[x + 641 + tail] = colour;
-							x += 2;
+						x += 1;
+						if (expand_x && x >= xstart && x < xend) {
+							p[x] = colour;
+							if (expand_y && y < yend)
+								p[x + 800] = p[x + 801] = colour;
+							x += 1;
 						}
 					} else
-						x += expand_x ? 4 : 2;
+						x += expand_x ? 2 : 1;
 				}
 				data++;
 			}
@@ -859,15 +1009,23 @@ void vic_render_screen ( void )
 	int tail_sdl;
 	Uint32 *p_sdl = xemu_start_pixel_buffer_access(&tail_sdl);
 	int sprites = vic_registers[0x15];
+	int tail = 800 - (vic_registers[0x58]*8);
+	if((vic_registers[0x31] & 0x80) == 0) {
+		tail = 800 - (vic_registers[0x58]*16);
+	}
+	if(tail < 0) {
+		tail = 0;
+	}
+
 	if (vic_registers[0x31] & 16) {
 	        sprite_bank = main_ram + ((vic_registers[0x35] & 12) << 12);	// FIXME: just guessing: sprite bank is bitplane 2 area, always 16K regardless of H640?
-		vic3_render_screen_bpm(p_sdl, tail_sdl);
+		vic3_render_screen_bpm(p_sdl, tail/*tail_sdl*/);
 	} else {
-		sprite_bank = vic2_16k_bank + main_ram;				// VIC2 legacy modes uses the VIC2 bank for sure, as the sprite bank too
+		sprite_bank = /*vic2_16k_bank +*/ main_ram + 0x8000;				// VIC2 legacy modes uses the VIC2 bank for sure, as the sprite bank too
 		if (vic_registers[0x11] & 32)
 			vic2_render_screen_bmm(p_sdl, tail_sdl);
 		else
-			vic2_render_screen_text(p_sdl, 160/*tail_sdl*/);
+			vic2_render_screen_text(p_sdl, 160 + tail_sdl);
 	}
 	if (sprites) {	// Render sprites. VERY BAD. We ignore sprite priority as well (cannot be behind the background)
 		int a;

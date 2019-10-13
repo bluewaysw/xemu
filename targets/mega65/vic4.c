@@ -681,8 +681,8 @@ static inline void vic2_render_screen_bmm ( Uint32 *p, int tail )
 	//vidp = main_ram + ((vic_registers[0x18] & 0xF0) << 6) + vic2_16k_bank;
 
 	Uint32 ystart, yend, yheight;
-	Uint32 border = palette[2];
-	Uint32 background = palette[3];
+	Uint32 border = palette[vic_registers[0x20]];
+	Uint32 background = palette[vic_registers[0x21]];
 	Uint32 cnt = 0;
 
 	ystart =
